@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create3 Control Panel</title>
+</head>
+<body>
+    <img id="pic" src="https://eu-images.contentstack.com/v3/assets/blt0bbd1b20253587c0/blt6869370e5b667779/6515513a16e9d484c6a27b8d/Ferrari_20SF_2023_Front3_4.png?width=1280&auto=webp&quality=95&format=jpg&disable=upscale" alt="Control Panel" width="150" height="100">
+    <h1 id="panelTitle">Ferrari iRobot Racing</h1>
+    <input type="text" id="robotName" placeholder="Enter robot name">
+    <input type="button" value="Connect" id="connectBtn">
+
+    <h2 id='isConnected'>Disconnected</h2>
+
+    <div id="driving">
+        <input type="button" value="Left" id="btnLeft">
+        <input type="button" value="Forward" id="btnForward">
+        <input type="button" value="Right" id="btnRight">
+    </div>
+
+    <div id="modes">
+        <input type="button" value="Manual" id="manual">
+        <input type="button" value="Auto" id="auto">
+    </div>
+
+    <div id="position">
+        X: <span id="X">0.00</span> |
+        Y: <span id="Y">0.00</span> |
+        Yaw: <span id="Z">0.00°</span>
+    </div>
+
+    <p>Battery Voltage: <strong id="battVoltage">0</strong> %</p>
+    <p>Mode: <strong id="mode">Manual</strong></p>
+
+</body>
+</html>
+
+<style>
+     #pic {
+            position: absolute; /* Use absolute positioning */
+            top: 0; /* Align to the top */
+            left: 0; /* Align to the left */
+        }
+    body {
+        background: #d70202;
+        color: #e8f901;
+        font-family: 'Times New Roman', Times, serif;
+        text-align: center;
+        padding: 20px;
+    }
+    h1 {
+        font-size: 2em;
+    }
+    img {
+        border-radius: 0px;
+        box-shadow: 0 1px 1px rgba(0, 0, 0, 0);
+    }
+    input[type="text"], input[type="button"] {
+        padding: 10px;
+        border: none;
+        border-radius: 5px;
+        margin: 10px;
+        font-family:'Times New Roman', Times, serif;
+    }
+    h2 {
+        margin-top: 20px;
+    }
+    p {
+        font-size: 1.5em;
+    }
+    #connectBtn{
+        background-color: #f8f404;
+        color: #000000;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        width: 125px;         /* Sets a fixed width */
+        height: 34px;
+    }
+    #connectBtn:hover{
+            background-color: #f0ee5d; /* Changes the background color */
+            transform: scale(1.05);      /* Slightly increases the size of the button */
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2); /* Adds a shadow effect */
+    }
+    #driving{
+        font-size: 1.5em;
+        border: 2px solid #000000;   /* Adds a solid border around the paragraph */
+        padding: 8px;             /* Adds padding inside the box */
+        margin: 20px 0;            /* Adds margin outside the box */
+        background-color: #bb2626; /* Optional: Adds a light background color inside the box */
+        border-radius: 8px;        /* Optional: Rounds the corners of the box */
+    }
+    #btnLeft{
+        background-color: #f8f404;
+        color: #000000;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        width: 125px;         /* Sets a fixed width */
+        height: 50px;
+    }
+    #btnLeft:hover{
+            background-color: #f0ee5d; /* Changes the background color */
+            transform: scale(1.05);      /* Slightly increases the size of the button */
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2); /* Adds a shadow effect */
+    }
+    #btnForward{
+        background-color: #f8f404;
+        color: #000000;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        width: 125px;         /* Sets a fixed width */
+        height: 50px;
+    }
+    #btnForward:hover{
+            background-color: #f0ee5d; /* Changes the background color */
+            transform: scale(1.05);      /* Slightly increases the size of the button */
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2); /* Adds a shadow effect */
+    }
+    #btnRight{
+        background-color: #f8f404;
+        color: #000000;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        width: 125px;         /* Sets a fixed width */
+        height: 50px;
+    }
+    #btnRight:hover{
+            background-color: #f0ee5d; /* Changes the background color */
+            transform: scale(1.05);      /* Slightly increases the size of the button */
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2); /* Adds a shadow effect */
+    }
+    #modes{
+        font-size: 1.5em;
+        border: 2px solid #000000;   /* Adds a solid border around the paragraph */
+        padding: 8px;             /* Adds padding inside the box */
+        margin: 20px 0;            /* Adds margin outside the box */
+        background-color: #bb2626; /* Optional: Adds a light background color inside the box */
+        border-radius: 8px;        /* Optional: Rounds the corners of the box */
+    }
+    #manual{
+        background-color: #f8f404;
+        color: #000000;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        width: 200px;         /* Sets a fixed width */
+        height: 50px;
+    }
+    #manual:hover{
+            background-color: #f0ee5d; /* Changes the background color */
+            transform: scale(1.05);      /* Slightly increases the size of the button */
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2); /* Adds a shadow effect */
+    }
+    #auto{
+        background-color: #f8f404;
+        color: #000000;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        width: 200px;         /* Sets a fixed width */
+        height: 50px;
+    }
+    #auto:hover{
+            background-color: #f0ee5d; /* Changes the background color */
+            transform: scale(1.05);      /* Slightly increases the size of the button */
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2); /* Adds a shadow effect */
+    }
+    #position {
+        font-size: 1.5em;
+        border: 2px solid #000000;   /* Adds a solid border around the paragraph */
+        padding: 20px;             /* Adds padding inside the box */
+        margin: 20px 0;            /* Adds margin outside the box */
+        background-color: #bb2626; /* Optional: Adds a light background color inside the box */
+        border-radius: 8px;        /* Optional: Rounds the corners of the box */
+}
+    
+
+
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<canvas id="irChart" width="400" height="200"></canvas>
+
+<script>
+
+    console.clear();
+    console.log("Hello World");
+
+    const ip = '192.168.8.104';
+    const port = '9012';
+    let ros;
+    let robName = 'juliet';
+    let cmdVel;
+    const btnLeft = document.getElementById('btnLeft');
+
+
+// Set up the IR sensor chart on a polar grid
+let irChart = new Chart(document.getElementById('irChart'), {
+    type: 'polarArea',
+    data: {
+        labels: ['Sensor 1', 'Sensor 2', 'Sensor 3', 'Sensor 4', 'Sensor 5', 'Sensor 6', 'Sensor 7'],
+        datasets: [{
+            label: 'Distance (m)',
+            data: [1, 1.2, 1.5, 2, 1.5, 1.2, 1], // Example distance values for each sensor
+            backgroundColor: [
+                'rgba(255, 99, 132, 0.5)',
+            ],
+            borderColor: [
+                'rgba(255, 99, 132, 1)',
+            ],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        scales: {
+            r: {
+                beginAtZero: true,
+                max: 10, // Adjust this based on the expected max distance of the IR sensor
+                ticks: {
+                    display: false // Hide ticks (numbers around the chart)
+                },
+                grid: {
+                    display: true // Hide the grid lines
+                }
+            }
+        },
+        rotation: -Math.PI / 2 - (Math.PI / 7) * 3, // Rotate so sensor 4 is at the top
+        circumference: Math.PI, // Limit the chart to half the circle
+        plugins: {
+            legend: {
+                display: false // Optional: hides the legend if you don't want it
+            }
+        },
+    }
+});
+
+    const robotName = document.getElementById('robotName');
+    robotName.addEventListener('input', function() {
+        const name = this.value || 'Create3';
+        document.getElementById('panelTitle').innerText = name + ' Control Panel';
+    });
+
+    const conBtn = document.getElementById('connectBtn');
+    conBtn.addEventListener('click', function() {
+        ros = new ROSLIB.Ros({ url: `ws://${ip}:${port}` });
+
+        ros.on('connection', function() {
+            document.getElementById('isConnected').innerHTML = "Connected";
+            document.getElementById('isConnected').style.color = '#5eea23';
+
+            robName = robotName.value || robName;
+
+            console.log('Connected to ROS!');
+
+            // Initialize battery state topic
+            battTopic = new ROSLIB.Topic({
+                ros: ros,
+                name: `/${robName}/battery_state`,
+                messageType: 'sensor_msgs/BatteryState'
+            });
+
+            // Subscribe to battery state topic
+            battTopic.subscribe(function(message) {
+                document.getElementById('battVoltage').innerText = (message.percentage * 100).toFixed(1);
+            });
+
+            // Initialize cmd_vel topic
+            cmdVel = new ROSLIB.Topic({
+                ros : ros,
+                name : `/${robName}/cmd_vel`,
+                messageType : 'geometry_msgs/Twist'
+            });
+
+            // Initialize mode topic
+            modeTopic = new ROSLIB.Topic({
+                ros: ros,
+                name: `/${robName}/mode`,
+                messageType: 'std_msgs/String'
+            });
+
+            // Initialize odom topic
+            odomTopic = new ROSLIB.Topic({
+                ros: ros,
+                name: `/${robName}/odom`,
+                messageType: 'nav_msgs/Odometry'
+            });
+
+            // Subscribe to odom topic
+            odomTopic.subscribe(function(message) {
+                const posX = message.pose.pose.position.x.toFixed(2);
+                const posY = message.pose.pose.position.y.toFixed(2);
+                const { x, y, z, w } = message.pose.pose.orientation;
+                const yaw = Math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z)) * (180 / Math.PI);
+
+                document.getElementById('X').innerText = 'X: ' + posX;
+                document.getElementById('Y').innerText = 'Y: ' + posY;
+                document.getElementById('Z').innerText = 'Yaw: ' + yaw.toFixed(2) + '°';
+            });
+
+            // Initialize IR sensors topic
+            const irSensorsTopic = new ROSLIB.Topic({
+                ros: ros,
+                name: `/${robName}/ir_intensity`,
+                messageType: 'irobot_create_msgs/IrIntensityVector'
+            });
+
+            // Subscribe to IR sensors topic
+            irSensorsTopic.subscribe(function(message) {
+                if (message.readings && message.readings.length > 0) {
+                    let sensorDistances = message.readings.map(reading => reading.value).slice(0, 7);
+                    irChart.data.datasets[0].data = sensorDistances;
+                    irChart.update();
+                // Update raw sensor readings
+                for (let i = 0; i < sensorDistances.length; i++) {
+                    document.getElementById(`sensor${i + 1}`).innerText = sensorDistances[i].toFixed(2);
+                }
+                    console.log(sensorDistances);
+                } else {
+                    console.log("No IR sensor data available");
+                }
+            });
+        });
+
+        ros.on('error', function(error) {
+            console.log('Connection error:', error);
+        });
+
+        ros.on('close', function() {
+            document.getElementById('isConnected').innerHTML = "Disconnected";
+            document.getElementById('isConnected').style.color = '#ff0000';
+        });
+    });
+
+    
+    btnLeft.addEventListener('click', function() {
+        const twist = new ROSLIB.Message({
+            linear: { x: 0, y: 0, z: 0 },
+            angular: { x: 0, y: 0, z: 0.5 }
+        });
+        cmdVel.publish(twist);
+    });
+
+    const btnForward = document.getElementById('btnForward');
+    
+    btnForward.addEventListener('click', function() {
+        const twist = new ROSLIB.Message({
+            linear: { x: 0.5, y: 0, z: 0 },
+            angular: { x: 0, y: 0, z: 0 }
+        });
+        cmdVel.publish(twist);
+    });
+
+    const btnRight = document.getElementById('btnRight');
+    
+    btnRight.addEventListener('click', function() {
+        const twist = new ROSLIB.Message({
+            linear: { x: 0, y: 0, z: 0 },
+            angular: { x: 0, y: 0, z: -0.5 }
+        });
+        cmdVel.publish(twist);
+    });
+    
+    const manual = document.getElementById('manual');
+    
+    manual.addEventListener('click', function() {
+        console.log("Manual mode");
+        const String = new ROSLIB.Message({
+            data: 'manual'
+        });
+        modeTopic.publish(String);
+        document.getElementById('mode').innerText = "Manual"
+    });
+    
+    const auto = document.getElementById('auto');
+    
+    auto.addEventListener('click', function() {
+        console.log("Auto mode");
+        const String = new ROSLIB.Message({
+            data: 'auto'
+        });
+        modeTopic.publish(String);
+        document.getElementById('mode').innerText = "Auto"
+    });
+</script>
+</html>
