@@ -30,11 +30,15 @@
 
     <p>Battery Voltage: <strong id="battVoltage">0</strong> %</p>
     <p>Mode: <strong id="mode">Manual</strong></p>
+    <p>Clock: <strong id ="clockDisplay">00:00</strong></p>
 
 </body>
 </html>
 
 <style>
+    #clockDisplay {
+        font-size: 1.1em;
+    }
      #pic {
             position: absolute; /* Use absolute positioning */
             top: 0; /* Align to the top */
@@ -169,15 +173,18 @@
         background-color: #bb2626; /* Optional: Adds a light background color inside the box */
         border-radius: 8px;        /* Optional: Rounds the corners of the box */
 }
-    
-
+    #mode{
+        font-size: 1em;
+        color: chartreuse;
+    }
 
 </style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<canvas id="irChart" width="400" height="200"></canvas>
 
+<canvas id="irChart" width="400" height="200"></canvas>
+<canvas id="odomGraph" width="400" height="200"></canvas>
 <script>
 
     console.clear();
@@ -215,7 +222,8 @@ let irChart = new Chart(document.getElementById('irChart'), {
                     display: false // Hide ticks (numbers around the chart)
                 },
                 grid: {
-                    display: true // Hide the grid lines
+                    display: true, // Hide the grid lines
+                    color: 'black',
                 }
             }
         },
@@ -229,7 +237,64 @@ let irChart = new Chart(document.getElementById('irChart'), {
     }
 });
 
+// Initialize an array to store odometry data (X, Y)
+let odomData = [];
 
+// Set up the odometry chart (X vs Y position)
+let odomGraph = new Chart(document.getElementById('odomGraph'), {
+    type: 'scatter',
+    data: {
+        datasets: [{
+            label: 'Odometry Path',
+            data: [],  // This will store {x, y} coordinates
+            borderColor: 'rgb(54, 162, 235)',
+            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+            fill: false,
+            pointRadius: 3,
+        }]
+    },
+    options: {
+        scales: {
+            x: {
+                type: 'linear',
+                position: 'bottom',
+                title: {
+                    display: true,
+                    text: 'X Position',
+                    color: 'black'  // Set axis label color to black
+                },
+                grid: {
+                    color: 'black',  // Set grid lines to black
+                },
+                ticks: {
+                    color: 'black'  // Set tick labels to black
+                }
+                },
+            y: {
+                type: 'linear',
+                position: 'left',
+                title: {
+                    display: true,
+                    text: 'Y Position',
+                    color: 'black'  // Set axis label color to black
+                },
+                grid: {
+                    color: 'black',  // Set grid lines to black
+                },
+                ticks: {
+                        color: 'black'  // Set tick labels to black
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        color: 'black'  // Set the legend title (Odometry Path) color to black
+                    }
+                }
+            }
+        }
+    });
 
     const robotName = document.getElementById('robotName');
     robotName.addEventListener('input', function() {
@@ -243,7 +308,7 @@ let irChart = new Chart(document.getElementById('irChart'), {
 
         ros.on('connection', function() {
             document.getElementById('isConnected').innerHTML = "Connected";
-            document.getElementById('isConnected').style.color = '#5eea23';
+            document.getElementById('isConnected').style.color = 'chartreuse';
 
             robName = robotName.value || robName;
 
@@ -281,18 +346,51 @@ let irChart = new Chart(document.getElementById('irChart'), {
                 name: `/${robName}/odom`,
                 messageType: 'nav_msgs/Odometry'
             });
+        
+            // Initialize a variable to track the last position
+            let lastPosition = { x: null, y: null };
 
-            // Subscribe to odom topic
+            // Initialize a counter to track odometry points
+            let odomCounter = 0;
+
+            // Define a threshold to determine if the robot hasn't moved significantly
+            const MOVEMENT_THRESHOLD = 0.01; // Adjust this threshold to suit your needs (in meters)
+
             odomTopic.subscribe(function(message) {
                 const posX = message.pose.pose.position.x.toFixed(2);
                 const posY = message.pose.pose.position.y.toFixed(2);
                 const { x, y, z, w } = message.pose.pose.orientation;
                 const yaw = Math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z)) * (180 / Math.PI);
 
+                // Compare the current position with the last position to detect significant movement
+                const deltaX = Math.abs(posX - lastPosition.x);
+                const deltaY = Math.abs(posY - lastPosition.y);
+
+                // If there's a significant movement, add the point and update last position
+                if (deltaX > MOVEMENT_THRESHOLD || deltaY > MOVEMENT_THRESHOLD) {
+                    // Only add every other point to the graph
+                    if (odomCounter % 2 === 0) {
+                        // Log position to the odometry data array (as {x, y})
+                        odomData.push({ x: parseFloat(posX), y: parseFloat(posY) });
+
+                        // Update the odom graph with the new (x, y) coordinates
+                        odomGraph.data.datasets[0].data = odomData;
+                        odomGraph.update();
+                    }
+
+                    // Update last position
+                    lastPosition = { x: posX, y: posY };
+
+                    // Increment counter
+                    odomCounter++;
+                }
+
+                // Update position on the page
                 document.getElementById('X').innerText = 'X: ' + posX;
                 document.getElementById('Y').innerText = 'Y: ' + posY;
                 document.getElementById('Z').innerText = 'Yaw: ' + yaw.toFixed(2) + '°';
             });
+
 
             // Initialize IR sensors topic
             const irSensorsTopic = new ROSLIB.Topic({
@@ -361,8 +459,9 @@ let irChart = new Chart(document.getElementById('irChart'), {
         var String = new ROSLIB.Message({
             data: 'manual'
         });
-        modeTopic.publish(String);
+        //modeTopic.publish(String);
         document.getElementById('mode').innerText = "Manual"
+        document.getElementById('mode').style.color = 'chartreuse';
     });
     const auto = document.getElementById('auto');
     auto.addEventListener('click', function() {
@@ -370,8 +469,67 @@ let irChart = new Chart(document.getElementById('irChart'), {
         var String = new ROSLIB.Message({
             data: 'auto'
         });
-        modeTopic.publish(String);
+        //modeTopic.publish(String);
         document.getElementById('mode').innerText = "Auto"
+        document.getElementById('mode').style.color = 'chartreuse';
     });
+    // Initialize the clock variables
+let clockInterval = null;
+let startTime = null;
+let isAutoMode = false;
+
+// Function to update the clock display
+function updateClock() {
+    const currentTime = new Date();
+    const elapsedTime = Math.floor((currentTime - startTime) / 1000); // Time in seconds
+    const minutes = Math.floor(elapsedTime / 60);
+    const seconds = elapsedTime % 60;
+
+    // Format the time as MM:SS
+    const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    document.getElementById('clockDisplay').innerText = formattedTime;
+}
+
+// Auto button click event listener
+auto.addEventListener('click', function() {
+    console.log("Auto mode");
+    var String = new ROSLIB.Message({
+        data: 'auto'
+    });
+
+    // Set the mode text to "Auto"
+    document.getElementById('mode').innerText = "Auto";
+    document.getElementById('mode').style.color = 'chartreuse';
+
+    // Start the clock when Auto mode is activated
+    if (!isAutoMode) {
+        isAutoMode = true;
+        startTime = new Date(); // Set the start time
+        clockInterval = setInterval(updateClock, 1000); // Update the clock every second
+    }
+});
+
+// Manual button click event listener
+manual.addEventListener('click', function() {
+    console.log("Manual mode");
+    var String = new ROSLIB.Message({
+        data: 'manual'
+    });
+
+    // Set the mode text to "Manual"
+    document.getElementById('mode').innerText = "Manual";
+    document.getElementById('mode').style.color = 'chartreuse';
+
+    // Optionally, stop the clock when manual mode is activated
+    if (isAutoMode) {
+        clearInterval(clockInterval); // Stop the clock
+        isAutoMode = false;
+        document.getElementById('clock').innerText = '00:00'; // Reset the clock display
+    }
+});
+
 </script>
 </html>
+
+
+// add speed indicator and turn rate  
