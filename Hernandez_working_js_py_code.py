@@ -6,7 +6,7 @@ import threading
 # ROS Connection Details
 ip = '192.168.8.104'
 port = 9012
-robot_name = 'juliet'
+robot_name = 'echo'
 
 # Establish connection to ROS
 ros_node = roslibpy.Ros(host=ip, port=port)
@@ -90,6 +90,7 @@ class RobotController:
     def auto_mode(self):  # Autonomous mode (Lane-Keeping)
         while not self.stop_event.is_set():
             if self.mode == "auto":
+                # Read IR sensor values
                 values = self.values
                 left_value = values[0]  # Adjust index based on sensor configuration
                 left_value2 = values[1]
@@ -99,37 +100,41 @@ class RobotController:
                 right_value3 = values[4]
                 center_value = values[3]
 
-                print(f"Values gathered from {self.mode} mode")
-
                 left_values = left_value + left_value2 + left_value3
                 right_values = right_value + right_value2 + right_value3
                 center_values = right_value3 + left_value3 + center_value
+                center_value_right = right_value3 + center_value
+                center_value_left = left_value3 + center_value
 
                 # Compute errors
                 error_left = 0 - left_values
-                error_right = 0 - right_values + 15
+                error_right = 0 - right_values  
+                error_center_right = 0 - center_value_right
+                error_center_left = 0 - center_value_left
+                error_center = 0 - center_value
 
                 # Compute proportional angular velocity adjustment
-                angular_correction = -self.Kp * (error_right - error_left)
-                error_detection = 0.01 * (0 - center_values)
+                error_detection = -0.007 * (error_right - error_left) + 0.005 * (error_center_left) + 0.005 * (-error_center_right)
+                print(f"Error detection: {error_detection}")
+                # Proportional control for linear speed
+                Kp_speed = 0.01  # Adjust based on tuning
+                min_speed = 0.1
+                max_speed = 3.0
+                speed = max_speed - Kp_speed * center_values
+                speed = max(min_speed, min(speed, max_speed))  # Clamping speed
 
-                if center_values > 100:
-                    # Apply correction and drive forward
-                    drive_message = {
-                        "linear": {"x": 0.5, "y": 0.0, "z": 0.0},  # Constant forward speed
-                        "angular": {"x": 0.0, "y": 0.0, "z": error_detection}  # Angular correction for centering
-                    }
-                    self.drive_pub.publish(roslibpy.Message(drive_message))
-                    print(f"DRIVE MESSAGE gathered from {self.mode} mode")
-                else:
-                    # Apply correction and drive forward
-                    drive_message = {
-                        "linear": {"x": 0.5, "y": 0.0, "z": 0.0},  # Constant forward speed
-                        "angular": {"x": 0.0, "y": 0.0, "z": angular_correction}  # Angular correction for centering
-                    }
-                    self.drive_pub.publish(roslibpy.Message(drive_message))
-                    print(f"DRIVE MESSAGE gathered from {self.mode} mode")
-                time.sleep(0.1)  # Loop at 10Hz
+                if center_values > 35:
+                    speed = 0.1  # Reduce speed significantly when very close to obstacles
+
+                # Apply correction and drive forward
+                drive_message = {
+                    "linear": {"x": speed, "y": 0.0, "z": 0.0},  
+                    "angular": {"x": 0.0, "y": 0.0, "z": error_detection}  
+                }
+
+                self.drive_pub.publish(roslibpy.Message(drive_message))
+
+                time.sleep(0.01)  # Loop at 10Hz
 
     def leds(self):  # Control light ring
         while not self.stop_event.is_set():
