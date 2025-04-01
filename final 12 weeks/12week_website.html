@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ferrari iRobot Racing Control Panel</title>
+    <!-- External CSS libraries (Bootstrap, Google Fonts, FontAwesome) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #1a1a1a;
+            color: white;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-image: url('https://eu-images.contentstack.com/v3/assets/blt0bbd1b20253587c0/blt6869370e5b667779/6515513a16e9d484c6a27b8d/Ferrari_20SF_2023_Front3_4.png?width=1280&auto=webp&quality=95&format=jpg&disable=upscale');
+            background-size: cover;
+            background-position: center;
+            padding: 50px 20px;
+            text-align: center;
+        }
+        header h1 {
+            color: white;
+            font-size: 2.5rem;
+            margin-top: 0;
+        }
+        .control-panel {
+            text-align: center;
+            padding: 30px;
+        }
+        .btn {
+            background-color: #333;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .btn:hover {
+            background-color: #ff6347;
+        }
+        .status {
+            font-size: 1.3rem;
+        }
+        .status span {
+            color: chartreuse;
+        }
+        .chart-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 30px;
+        }
+        .chart-container canvas {
+            background-color: #333;
+            border-radius: 10px;
+        }
+        #position, #battery, #mode, #clockDisplay {
+            margin: 10px 0;
+        }
+        .btn-large {
+            font-size: 1.5rem;
+            padding: 20px 40px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1 id="panelTitle">Ferrari iRobot Racing</h1>
+</header>
+
+<div class="control-panel container">
+    <!-- Robot Name and Connect Button -->
+    <input type="text" id="robotName" placeholder="Enter robot name" class="form-control mb-3" style="width: 300px; margin: 0 auto;">
+    <button type="button" id="connectBtn" class="btn btn-large">Connect</button>
+
+    <!-- Connection Status -->
+    <h2 id='isConnected' class="status">Disconnected</h2>
+
+    <!-- Control Buttons -->
+    <div id="driving" class="my-4">
+        <button type="button" class="btn btn-large" id="btnLeft">Left</button>
+        <button type="button" class="btn btn-large" id="btnForward">Forward</button>
+        <button type="button" class="btn btn-large" id="btnRight">Right</button>
+    </div>
+
+    <!-- Mode Selection -->
+    <div id="modes">
+        <button type="button" class="btn btn-large" id="manual">Manual</button>
+        <button type="button" class="btn btn-large" id="auto">Auto</button>
+    </div>
+
+    <!-- Robot Status Information -->
+    <div id="position">
+        X: <span id="X">0.00</span> | Y: <span id="Y">0.00</span> | Yaw: <span id="Z">0.00°</span>
+    </div>
+
+    <div id="battery">
+        Battery Voltage: <strong id="battVoltage">0</strong> %
+    </div>
+
+    <div id="mode">
+        Mode: <strong id="modeStatus">Manual</strong>
+    </div>
+
+    <div id="clockDisplay">
+        Clock: <strong id="clockDisplayText">00:00</strong>
+    </div>
+</div>
+
+<div class="chart-container">
+    <!-- Sensor Chart & Odometry Chart -->
+    <canvas id="irChart" width="400" height="200"></canvas>
+    <canvas id="odomGraph" width="400" height="200"></canvas>
+</div>
+
+<!-- External JS libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    console.clear();
+    console.log("Hello World");
+
+    const ip = '192.168.8.104';
+    const port = '9012';
+    let ros;
+    let robName = 'juliet';
+    let cmdVel;
+    let clockInterval = null;
+    let startTime = null;
+    let isAutoMode = false;
+
+    // Set up the IR sensor chart on a polar grid
+    let irChart = new Chart(document.getElementById('irChart'), {
+        type: 'polarArea',
+        data: {
+            labels: ['Front', 'Left', 'Right', 'Back'],
+            datasets: [{
+                data: [0, 0, 0, 0],
+                backgroundColor: ['#ff6347', '#32cd32', '#4169e1', '#ff8c00'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: true }
+            }
+        }
+    });
+
+    // Initialize odometry chart
+    let odomGraph = new Chart(document.getElementById('odomGraph'), {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'Odometry Path',
+                data: [{ x: 0, y: 0 }],
+                backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 1,
+                showLine: true
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: { type: 'linear', position: 'bottom' },
+                y: { type: 'linear', position: 'left' }
+            }
+        }
+    });
+
+    const robotName = document.getElementById('robotName');
+    robotName.addEventListener('input', function() {
+        const name = this.value || 'Create3';
+        document.getElementById('panelTitle').innerText = name + ' Control Panel';
+    });
+
+    const conBtn = document.getElementById('connectBtn');
+    conBtn.addEventListener('click', function() {
+        ros = new ROSLIB.Ros({ url: `ws://${ip}:${port}` });
+
+        ros.on('connection', function() {
+            document.getElementById('isConnected').innerHTML = "Connected";
+            document.getElementById('isConnected').style.color = 'chartreuse';
+            robName = robotName.value || robName;
+            console.log('Connected to ROS!');
+
+            // Initialize ROS Topics
+            battTopic = new ROSLIB.Topic({
+                ros: ros,
+                name: `/${robName}/battery_state`,
+                messageType: 'sensor_msgs/BatteryState'
+            });
+
+            cmdVel = new ROSLIB.Topic({
+                ros: ros,
+                name: `/${robName}/cmd_vel`,
+                messageType: 'geometry_msgs/Twist'
+            });
+
+            modeTopic = new ROSLIB.Topic({
+                ros: ros,
+                name: `/${robName}/mode`,
+                messageType: 'std_msgs/String'
+            });
+
+            odomTopic = new ROSLIB.Topic({
+                ros: ros,
+                name: `/${robName}/odom`,
+                messageType: 'nav_msgs/Odometry'
+            });
+
+            // IR sensors topic subscription
+            const irSensorsTopic = new ROSLIB.Topic({
+                ros: ros,
+                name: `/${robName}/ir_intensity`,
+                messageType: 'irobot_create_msgs/IrIntensityVector'
+            });
+
+            irSensorsTopic.subscribe(function(message) {
+                // Update the IR chart data and raw sensor readings
+                irChart.data.datasets[0].data = message.intensities;
+                irChart.update();
+            });
+        });
+
+        ros.on('error', function(error) {
+            console.log('Connection error:', error);
+        });
+
+        ros.on('close', function() {
+            document.getElementById('isConnected').innerHTML = "Disconnected";
+            document.getElementById('isConnected').style.color = '#ff0000';
+        });
+    });
+
+    const btnLeft = document.getElementById('btnLeft');
+    btnLeft.addEventListener('click', function() {
+        const twist = new ROSLIB.Message({
+            linear: { x: 0, y: 0, z: 0 },
+            angular: { x: 0, y: 0, z: 0.5 }
+        });
+        cmdVel.publish(twist);
+    });
+
+    const btnForward = document.getElementById('btnForward');
+    btnForward.addEventListener('click', function() {
+        const twist = new ROSLIB.Message({
+            linear: { x: 0.2, y: 0, z: 0 },
+            angular: { x: 0, y: 0, z: 0 }
+        });
+        cmdVel.publish(twist);
+    });
+
+    const btnRight = document.getElementById('btnRight');
+    btnRight.addEventListener('click', function() {
+        const twist = new ROSLIB.Message({
+            linear: { x: 0, y: 0, z: 0 },
+            angular: { x: 0, y: 0, z: -0.5 }
+        });
+        cmdVel.publish(twist);
+    });
+
+    const manual = document.getElementById('manual');
+    manual.addEventListener('click', function() {
+        console.log("Manual mode");
+        const modeMessage = new ROSLIB.Message({ data: 'manual' });
+        modeTopic.publish(modeMessage);
+        document.getElementById('modeStatus').innerText = "Manual";
+        document.getElementById('modeStatus').style.color = 'chartreuse';
+
+        // Stop the clock when switching to manual mode
+        if (isAutoMode) {
+            clearInterval(clockInterval);
+            isAutoMode = false;
+            document.getElementById('clockDisplayText').innerText = '00:00';
+        }
+    });
+
+    const auto = document.getElementById('auto');
+    auto.addEventListener('click', function() {
+        console.log("Auto mode");
+        const modeMessage = new ROSLIB.Message({ data: 'auto' });
+        modeTopic.publish(modeMessage);
+        document.getElementById('modeStatus').innerText = "Auto";
+        document.getElementById('modeStatus').style.color = 'chartreuse';
+
+        // Start the clock when Auto mode is activated
+        if (!isAutoMode) {
+            isAutoMode = true;
+            startTime = new Date(); // Set the start time
+            clockInterval = setInterval(updateClock, 1000); // Update the clock every second
+        }
+    });
+
+    function updateClock() {
+        const currentTime = new Date();
+        const elapsedTime = Math.floor((currentTime - startTime) / 1000); // Time in seconds
+        const minutes = Math.floor(elapsedTime / 60);
+        const seconds = elapsedTime % 60;
+
+        // Format the time as MM:SS
+        const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        document.getElementById('clockDisplayText').innerText = formattedTime;
+    }
+</script>
+
+</body>
+</html>
