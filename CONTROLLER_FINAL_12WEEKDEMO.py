@@ -16,7 +16,7 @@ if pygame.joystick.get_count() == 0:
 ros_node = roslibpy.Ros(host='192.168.8.104', port=9012)
 ros_node.run()
 
-robot_name = 'india'
+robot_name = 'omega'
 
 # Joystick class
 class Joystick:
@@ -150,10 +150,10 @@ class RobotController:
 
                 # Compute proportional angular velocity adjustment
                 angular_correction = -self.Kp * (error_right - error_left) 
-                error_detection = -0.01* (error_right - error_left) + 0.05*(error_center)
+                error_detection = -0.01* (error_right - error_left) + 0.008*(error_center)
 
                 # Proportional control for linear speed
-                Kp_speed = 0.05  # Adjust based on tuning
+                Kp_speed = 0.04  # Adjust based on tuning
                 min_speed = 0.5
                 max_speed = 3.0
                 speed = max_speed - Kp_speed * center_values
@@ -162,7 +162,7 @@ class RobotController:
                 if center_values > 20:
                     
                     drive_message = {
-                    "linear": {"x": speed, "y": 0.0, "z": 0.0},  
+                    "linear": {"x": speed*0.3, "y": 0.0, "z": 0.0},  
                     "angular": {"x": 0.0, "y": 0.0, "z": error_detection}  
                     }
 
