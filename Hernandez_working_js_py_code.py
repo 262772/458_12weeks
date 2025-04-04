@@ -6,7 +6,7 @@ import threading
 # ROS Connection Details
 ip = '192.168.8.104'
 port = 9012
-robot_name = 'echo'
+robot_name = 'omega'
 
 # Establish connection to ROS
 ros_node = roslibpy.Ros(host=ip, port=port)
@@ -37,7 +37,7 @@ class RobotController:
         self.mode_sub_topic.subscribe(self.mode_callback)
 
         # Create and start threads
-        self.led_thread = threading.Thread(target=self.leds, daemon=True)
+        self.led_thread = threading.Thread(target=self.led_blinker, daemon=True)
         self.audio_thread = threading.Thread(target=self.audio, daemon=True)
         self.auto_mode_thread = threading.Thread(target=self.auto_mode, daemon=True)
 
@@ -63,7 +63,7 @@ class RobotController:
                     self.autonomous_mode = False
                     print(f"Manual mode {'activated' if self.manual_mode else 'deactivated'}")
                     time.sleep(0.3)  # Debounce delay
-                    self.color = 'Red'
+                    #self.color = 'Red'
 
                 if self.mode == "auto":
                     self.idle_mode = not self.idle_mode
@@ -71,7 +71,7 @@ class RobotController:
                     self.autonomous_mode = False
                     print(f"RACE mode activated with {self.mode}")
                     time.sleep(0.3)
-                    self.color = 'Green'
+                    #self.color = 'Green'
 
             time.sleep(0.1)  # Loop at 5 Hz
 
@@ -90,7 +90,6 @@ class RobotController:
     def auto_mode(self):  # Autonomous mode (Lane-Keeping)
         while not self.stop_event.is_set():
             if self.mode == "auto":
-                # Read IR sensor values
                 values = self.values
                 left_value = values[0]  # Adjust index based on sensor configuration
                 left_value2 = values[1]
@@ -105,52 +104,48 @@ class RobotController:
                 center_values = right_value3 + left_value3 + center_value
                 center_value_right = right_value3 + center_value
                 center_value_left = left_value3 + center_value
+                
 
                 # Compute errors
                 error_left = 0 - left_values
-                error_right = 0 - right_values  
+                error_right = 0- right_values  
+                error_center= 0-center_value
                 error_center_right = 0 - center_value_right
                 error_center_left = 0 - center_value_left
-                error_center = 0 - center_value
 
                 # Compute proportional angular velocity adjustment
-                error_detection = -0.007 * (error_right - error_left) + 0.005 * (error_center_left) + 0.005 * (-error_center_right)
-                print(f"Error detection: {error_detection}")
+                angular_correction = -self.Kp * (error_right - error_left) 
+                error_detection = -0.01* (error_right - error_left) + 0.008*(error_center)
+
                 # Proportional control for linear speed
-                Kp_speed = 0.01  # Adjust based on tuning
-                min_speed = 0.1
+                Kp_speed = 0.04  # Adjust based on tuning
+                min_speed = 0.5
                 max_speed = 3.0
                 speed = max_speed - Kp_speed * center_values
                 speed = max(min_speed, min(speed, max_speed))  # Clamping speed
 
-                if center_values > 35:
-                    speed = 0.1  # Reduce speed significantly when very close to obstacles
+                if center_values > 20:
+                    
+                    drive_message = {
+                    "linear": {"x": speed*0.3, "y": 0.0, "z": 0.0},  
+                    "angular": {"x": 0.0, "y": 0.0, "z": error_detection}  
+                    }
+
+                    self.drive_pub.publish(roslibpy.Message(drive_message))
+                else:
 
                 # Apply correction and drive forward
-                drive_message = {
-                    "linear": {"x": speed, "y": 0.0, "z": 0.0},  
-                    "angular": {"x": 0.0, "y": 0.0, "z": error_detection}  
-                }
+                    drive_message = {
+                        "linear": {"x": speed, "y": 0.0, "z": 0.0},  
+                        "angular": {"x": 0.0, "y": 0.0, "z": angular_correction}  
+                    }
 
-                self.drive_pub.publish(roslibpy.Message(drive_message))
+                    self.drive_pub.publish(roslibpy.Message(drive_message))
 
                 time.sleep(0.01)  # Loop at 10Hz
 
-    def leds(self):  # Control light ring
-        while not self.stop_event.is_set():
-            with self.mode_lock:  # Ensure thread-safe access to self.mode
-                if self.mode == "manual":
-                    play_lights(self.ros_node, self.robot_name, 'Red')
-                    time.sleep(0.5)  # Blink on
-                    play_lights(self.ros_node, self.robot_name, 'Off')
-                    time.sleep(0.5)  # Blink off
-                    print(f"LEDs in {self.mode} mode")
-                elif self.mode == "auto":
-                    play_lights(self.ros_node, self.robot_name, 'Green')
-                    print(f"LEDs in {self.mode} mode")
-                    time.sleep(1)  # Keep the LED color
 
-            time.sleep(0.1)
+
 
     def audio(self):  # Play audio
         last_mode = None  # Track the last executed mode
@@ -186,7 +181,29 @@ class RobotController:
                 last_mode = current_mode  # Update last mode to prevent re-triggering
 
             time.sleep(0.1)
- 
+    
+    def update_led(self, red, green, blue):
+        """Sends an LED update."""
+        led_colors = [{"red": red, "green": green, "blue": blue}] * 6
+        message_light = {'leds': led_colors, 'override_system': True}
+        with self.mode_lock:
+            self.led_pub.publish(roslibpy.Message(message_light))
+    
+    #Shows different color/blink pattern for different modes of the robot
+    def led_blinker(self):
+        """Handles LED updates based on mode."""
+        while not self.stop_event.is_set():
+            if self.mode == "auto":
+                print("Auto mode activated RED BLINKING")
+                self.update_led(255, 0, 0)  # RED (Solid in manual)
+                time.sleep(0.5) # Blink every 0.5 seconds
+                self.update_led(0, 0, 0)  # Off
+                time.sleep(0.5)  # Off for 0.5 seconds
+            elif self.mode == "manual":
+                print("Manual mode activated BLUE")
+                self.update_led(0, 0, 255)  # BLUE (Solid in manual)
+                time.sleep(1)
+
     def start_threads(self):
         """Starts control and LED threads."""
         for t in self.threads:
